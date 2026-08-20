@@ -11,7 +11,8 @@
     "jscpd": "jscpd ./apps ./packages",
     "cdk": "pnpm --filter cdk",
     "x402server": "pnpm --filter x402server",
-    "x402client": "pnpm --filter x402client"
+    "x402client": "pnpm --filter x402client",
+    "facilitator": "pnpm --filter facilitator"
   },
   "keywords": [],
   "author": "",
