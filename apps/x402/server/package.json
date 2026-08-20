@@ -1,5 +1,5 @@
 {
-  "name": "server",
+  "name": "x402server",
   "version": "1.0.0",
   "private": true,
   "description": "",
@@ -16,8 +16,10 @@
     "@x402/avm": "^2.23.0",
     "@x402/core": "^2.23.0",
     "@x402/evm": "^2.23.0",
+    "@x402/extensions": "^2.23.0",
     "@x402/hono": "^2.23.0",
     "@x402/svm": "^2.23.0",
+    "dotenv": "^17.4.2",
     "hono": "^4.13.3",
     "tsx": "^4.23.12"
   },

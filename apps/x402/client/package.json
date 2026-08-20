@@ -1,0 +1,25 @@
+{
+  "name": "x402client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "@x402/axios": "^2.23.0",
+    "@x402/evm": "^2.23.0",
+    "@x402/fetch": "^2.23.0",
+    "axios": "^1.19.0",
+    "tsx": "^4.23.12",
+    "viem": "^2.55.19"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2"
+  }
+}

@@ -9,7 +9,9 @@
     "check": "pnpm exec biome check --write .",
     "knip": "knip",
     "jscpd": "jscpd ./apps ./packages",
-    "cdk": "pnpm --filter cdk"
+    "cdk": "pnpm --filter cdk",
+    "x402server": "pnpm --filter x402server",
+    "x402client": "pnpm --filter x402client"
   },
   "keywords": [],
   "author": "",

@@ -1,3 +1,6 @@
+import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
+import "dotenv/config";
+
 // x402に関する設定
 export const x402Config = {
   "GET /weather": {
@@ -9,7 +12,17 @@ export const x402Config = {
         payTo: process.env.EVM_ADDRESS as `0x${string}`,
       },
     ],
-    description: "Weather data",
+    description:
+      "Get real-time weather data including temperature, conditions, and humidity",
     mimeType: "application/json",
+    extensions: {
+      ...declareDiscoveryExtension({
+        input: { city: "San Francisco" },
+        inputSchema: {
+          properties: { city: { type: "string", description: "City name" } },
+          required: ["city"],
+        },
+      }),
+    },
   },
 };
