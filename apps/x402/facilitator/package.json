@@ -13,6 +13,7 @@
     "@x402/core": "^2.23.0",
     "@x402/evm": "^2.23.0",
     "hono": "^4.13.3",
+    "shared": "workspace:*",
     "viem": "^2.55.19"
   },
   "devDependencies": {

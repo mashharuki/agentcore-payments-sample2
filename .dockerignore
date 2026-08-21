@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+**/dist
+**/build
+**/cdk.out
+.git
+.serena
+.codegraph
+.claude
+.agents
+**/*.env
+**/*.env.local

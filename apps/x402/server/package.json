@@ -13,14 +13,13 @@
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
     "@hono/node-server": "^2.1.1",
-    "@x402/avm": "^2.23.0",
     "@x402/core": "^2.23.0",
     "@x402/evm": "^2.23.0",
     "@x402/extensions": "^2.23.0",
     "@x402/hono": "^2.23.0",
-    "@x402/svm": "^2.23.0",
     "dotenv": "^17.4.2",
     "hono": "^4.13.3",
+    "shared": "workspace:*",
     "tsx": "^4.23.12"
   },
   "devDependencies": {

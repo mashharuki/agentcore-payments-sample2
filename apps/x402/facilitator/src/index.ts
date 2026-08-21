@@ -12,7 +12,7 @@ import dotenv from "dotenv";
 import { Hono } from "hono";
 import {
   baseSepoliaChainInfo,
-  chainInfo,
+  env,
   getFacilitatorEvmSignerForChain,
   getViemClientForChain,
 } from "./viem.js";
@@ -23,15 +23,13 @@ dotenv.config();
 // Configuration
 // ========================================
 
-const PORT = Number(process.env.PORT ?? 4022);
+const PORT = env.PORT;
 
-// create  Viem client for the chain
-const viemClient = getViemClientForChain(chainInfo.chain);
-const viemClient2 = getViemClientForChain(baseSepoliaChainInfo.chain);
+// create Viem client for the chain（対応ネットワークはBase Sepoliaのみ）
+const viemClient = getViemClientForChain(baseSepoliaChainInfo.chain);
 
-// Facilitator EVM signerを作成(チェーンごとに作成する必要がある)
+// Facilitator EVM signerを作成
 const evmSigner = getFacilitatorEvmSignerForChain(viemClient);
-const evmSigner2 = getFacilitatorEvmSignerForChain(viemClient2);
 
 // ========================================
 // x402 Facilitator
@@ -59,31 +57,19 @@ export const facilitator = new x402Facilitator()
   });
 
 // ========================================
-// Register schemes
+// Register schemes（対応ネットワークはBase Sepoliaのみ）
 // ========================================
-
-// World Sepolia - Exact
-facilitator.register(
-  chainInfo.chainId as `eip155:${number}`,
-  new ExactEvmScheme(evmSigner, { eip6492AllowedFactories: [] }),
-);
-
-// World Sepolia - Upto
-facilitator.register(
-  chainInfo.chainId as `eip155:${number}`,
-  new UptoEvmScheme(evmSigner),
-);
 
 // Base Sepolia - Exact
 facilitator.register(
   baseSepoliaChainInfo.chainId as `eip155:${number}`,
-  new ExactEvmScheme(evmSigner2, { eip6492AllowedFactories: [] }),
+  new ExactEvmScheme(evmSigner, { eip6492AllowedFactories: [] }),
 );
 
 // Base Sepolia - Upto
 facilitator.register(
   baseSepoliaChainInfo.chainId as `eip155:${number}`,
-  new UptoEvmScheme(evmSigner2),
+  new UptoEvmScheme(evmSigner),
 );
 
 // ========================================

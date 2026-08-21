@@ -1,30 +1,38 @@
 import "dotenv/config";
-import { api, httpClient } from "./config";
+import { fetchWithAgentCorePayment } from "shared";
+import { env } from "./config";
+
+type WeatherResponse = {
+  report: {
+    weather: string;
+    temperature: number;
+  };
+};
 
 /**
  * メインスクリプト
+ * x402で保護された /weather を取得する。402が返った場合のみ、
+ * Amazon Bedrock AgentCore Payments（ProcessPayment）経由で決済してから再取得する。
  */
 const main = async () => {
-  // Make request - payment is handled automatically
-  const response = await api.get(process.env.PAYWALL_PATH);
+  const url = `${env.PAYWALL_API_BASE_URL}${env.PAYWALL_PATH}`;
 
-  console.log("status:", response.status);
-  console.log("headers:", response.headers);
-  console.dir(response.data, { depth: null });
-
-  // Parse the payment result (status, body, and decoded payment header)
-  const result = httpClient.parsePaymentResult({
-    status: response.status,
-    getHeader: (name: string) => response.headers[name.toLowerCase()],
-    body: response.data,
+  const result = await fetchWithAgentCorePayment<WeatherResponse>(url, {
+    region: env.AWS_REGION,
+    paymentManagerArn: env.PAYMENT_MANAGER_ARN,
+    paymentInstrumentId: env.PAYMENT_INSTRUMENT_ID,
+    paymentSessionId: env.PAYMENT_SESSION_ID,
+    userId: env.PAYMENT_USER_ID,
   });
 
-  console.log("Response:", result.body);
+  console.log("Response:", result.data);
 
-  if (result.paymentStatus === "settled") {
-    console.log("Payment settled:", result.header);
-  } else if (result.paymentStatus === "settle_failed") {
-    console.error("Settlement failed:", result.header);
+  if (result.paymentMade) {
+    console.log(
+      `AgentCore Payments経由で決済しました（processPaymentId: ${result.processPaymentId}）`,
+    );
+  } else {
+    console.log("402は発生せず、決済なしでリソースを取得しました");
   }
 };
 

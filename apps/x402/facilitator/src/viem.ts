@@ -1,8 +1,9 @@
 import { toFacilitatorEvmSigner } from "@x402/evm";
 import dotenv from "dotenv";
+import { facilitatorEnvSchema, loadEnv } from "shared";
 import { type Chain, createWalletClient, http, publicActions } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { baseSepolia, worldchainSepolia } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 
 dotenv.config();
 
@@ -10,28 +11,19 @@ dotenv.config();
 // Validate environment variables
 // ========================================
 
-if (!process.env.EVM_PRIVATE_KEY) {
-  console.error("❌ EVM_PRIVATE_KEY environment variable is required");
-  process.exit(1);
-}
+export const env = loadEnv(facilitatorEnvSchema);
 
 // ========================================
 // EVM
 // ========================================
 
 export const evmAccount = privateKeyToAccount(
-  process.env.EVM_PRIVATE_KEY as `0x${string}`,
+  env.EVM_PRIVATE_KEY as `0x${string}`,
 );
 
 console.info(`EVM Facilitator account: ${evmAccount.address}`);
 
-// chain info
-export const chainInfo = {
-  chain: worldchainSepolia,
-  chainId: "eip155:4801",
-};
-
-// baseSepolia
+// baseSepolia（対応ネットワークはBase Sepoliaのみ）
 export const baseSepoliaChainInfo = {
   chain: baseSepolia,
   chainId: "eip155:84532",

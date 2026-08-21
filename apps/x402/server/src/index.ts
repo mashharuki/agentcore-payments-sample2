@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { paymentMiddleware } from "@x402/hono";
 import { Hono } from "hono";
-import { x402Config } from "./config";
+import { env, x402Config } from "./config";
 import { resourceServer } from "./resourceServer";
 
 // Honoインスタンスの作成
@@ -28,4 +28,8 @@ app.get("/weather", (c) => {
   });
 });
 
-serve({ fetch: app.fetch, port: 4021 });
+serve({ fetch: app.fetch, port: env.PORT }, (info) => {
+  console.log(
+    `x402 resource server listening on http://localhost:${info.port}`,
+  );
+});
