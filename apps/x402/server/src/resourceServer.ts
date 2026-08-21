@@ -9,3 +9,9 @@ resourceServer.register(
   "eip155:84532" as `${string}:${string}`,
   new ExactEvmScheme(),
 );
+
+// worldchain SepoliaのExactEvmSchemeを登録
+resourceServer.register(
+  "eip155:4801" as `${string}:${string}`,
+  new ExactEvmScheme(),
+);

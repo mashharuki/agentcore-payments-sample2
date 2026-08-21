@@ -6,14 +6,11 @@ import type {
   SettleResponse,
   VerifyResponse,
 } from "@x402/core/types";
-import { toFacilitatorEvmSigner } from "@x402/evm";
 import { ExactEvmScheme } from "@x402/evm/exact/facilitator";
 import { UptoEvmScheme } from "@x402/evm/upto/facilitator";
 import dotenv from "dotenv";
 import { Hono } from "hono";
-import { createWalletClient, http, publicActions } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { baseSepolia } from "viem/chains";
+import { baseSepoliaChainInfo, chainInfo, getFacilitatorEvmSignerForChain, getViemClientForChain } from "./viem.js";
 
 dotenv.config();
 
@@ -23,94 +20,20 @@ dotenv.config();
 
 const PORT = Number(process.env.PORT ?? 4022);
 
-// ========================================
-// Validate environment variables
-// ========================================
+// create  Viem client for the chain
+const viemClient = getViemClientForChain(chainInfo.chain);
+const viemClient2 = getViemClientForChain(baseSepoliaChainInfo.chain);
 
-if (!process.env.EVM_PRIVATE_KEY) {
-  console.error("❌ EVM_PRIVATE_KEY environment variable is required");
-  process.exit(1);
-}
-
-// ========================================
-// EVM
-// ========================================
-
-const evmAccount = privateKeyToAccount(
-  process.env.EVM_PRIVATE_KEY as `0x${string}`,
-);
-
-console.info(`EVM Facilitator account: ${evmAccount.address}`);
-
-// chain info
-
-const chainInfo = {
-  chain: baseSepolia,
-  chainId: "eip155:84532",
-}
-
-// Viem clientを作成
-const viemClient = createWalletClient({
-  account: evmAccount,
-  chain: chainInfo.chain,
-  transport: http(),
-}).extend(publicActions);
-
-// Facilitator EVM signerを作成
-const evmSigner = toFacilitatorEvmSigner({
-  getCode: (args: { address: `0x${string}` }) => viemClient.getCode(args),
-
-  address: evmAccount.address,
-
-  readContract: (args: {
-    address: `0x${string}`;
-    abi: readonly unknown[];
-    functionName: string;
-    args?: readonly unknown[];
-  }) =>
-    viemClient.readContract({
-      ...args,
-      args: args.args ?? [],
-    }),
-
-  verifyTypedData: (args: {
-    address: `0x${string}`;
-    domain: Record<string, unknown>;
-    types: Record<string, unknown>;
-    primaryType: string;
-    message: Record<string, unknown>;
-    signature: `0x${string}`;
-  }) =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    viemClient.verifyTypedData(args as any),
-
-  writeContract: (args: {
-    address: `0x${string}`;
-    abi: readonly unknown[];
-    functionName: string;
-    args: readonly unknown[];
-  }) =>
-    viemClient.writeContract({
-      ...args,
-      args: args.args ?? [],
-    }),
-
-  sendTransaction: (args: {
-    to: `0x${string}`;
-    data: `0x${string}`;
-  }) => viemClient.sendTransaction(args),
-
-  waitForTransactionReceipt: (args: {
-    hash: `0x${string}`;
-  }) => viemClient.waitForTransactionReceipt(args),
-});
+// Facilitator EVM signerを作成(チェーンごとに作成する必要がある)
+const evmSigner = getFacilitatorEvmSignerForChain(viemClient);
+const evmSigner2 = getFacilitatorEvmSignerForChain(viemClient2);
 
 // ========================================
 // x402 Facilitator
 // ========================================
 
 // ファシリテーターインスタンスを生成
-const facilitator = new x402Facilitator()
+export const facilitator = new x402Facilitator()
   .onBeforeVerify(async (context) => {
     console.log("================ Before verify ================", context);
   })
@@ -134,20 +57,29 @@ const facilitator = new x402Facilitator()
 // Register schemes
 // ========================================
 
-// Base Sepolia - Exact
+// World Sepolia - Exact
 facilitator.register(
   chainInfo.chainId as `eip155:${number}`,
-  new ExactEvmScheme(evmSigner, {
-    eip6492AllowedFactories: [],
-  }),
+  new ExactEvmScheme(evmSigner, { eip6492AllowedFactories: [] }),
 );
 
-// Base Sepolia - Upto
+// World Sepolia - Upto
 facilitator.register(
   chainInfo.chainId as `eip155:${number}`,
   new UptoEvmScheme(evmSigner),
 );
 
+// Base Sepolia - Exact
+facilitator.register(
+  baseSepoliaChainInfo.chainId as `eip155:${number}`,
+  new ExactEvmScheme(evmSigner2, { eip6492AllowedFactories: [] }),
+);
+
+// Base Sepolia - Upto
+facilitator.register(
+  baseSepoliaChainInfo.chainId as `eip155:${number}`,
+  new UptoEvmScheme(evmSigner2),
+);
 
 // ========================================
 // Hono
@@ -303,8 +235,6 @@ serve(
     port: PORT,
   },
   (info) => {
-    console.log(
-      `🚀 Facilitator listening on http://localhost:${info.port}`,
-    );
+    console.log(`🚀 Facilitator listening on http://localhost:${info.port}`);
   },
 );

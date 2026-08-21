@@ -12,10 +12,12 @@
   "license": "ISC",
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
+    "@coinbase/cdp-sdk": "^1.55.0",
     "@x402/axios": "^2.23.0",
     "@x402/evm": "^2.23.0",
     "@x402/fetch": "^2.23.0",
     "axios": "^1.19.0",
+    "cdp-sdk": "link:@coinbase/cdp-sdk",
     "tsx": "^4.23.12",
     "viem": "^2.55.19"
   },

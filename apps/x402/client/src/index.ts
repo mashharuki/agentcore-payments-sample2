@@ -8,6 +8,10 @@ const main = async () => {
   // Make request - payment is handled automatically
   const response = await api.get(process.env.PAYWALL_PATH);
 
+  console.log("status:", response.status);
+  console.log("headers:", response.headers);
+  console.dir(response.data, { depth: null });
+
   // Parse the payment result (status, body, and decoded payment header)
   const result = httpClient.parsePaymentResult({
     status: response.status,
@@ -24,4 +28,7 @@ const main = async () => {
   }
 };
 
-main();
+main().catch((error) => {
+  console.error("Error:", error);
+  process.exit(1);
+});

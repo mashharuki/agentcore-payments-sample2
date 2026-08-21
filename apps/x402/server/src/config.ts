@@ -11,6 +11,19 @@ export const x402Config = {
         network: "eip155:84532" as `${string}:${string}`, // Base Sepolia
         payTo: process.env.EVM_ADDRESS as `0x${string}`,
       },
+      {
+        scheme: "exact",
+        price: {
+          amount: "10000",
+          asset: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88" as `0x${string}`,
+          extra: {
+            name: "USDC",
+            version: "2",
+          },
+        },
+        network: "eip155:4801" as `${string}:${string}`, // Worldchain Sepolia
+        payTo: process.env.EVM_ADDRESS as `0x${string}`,
+      },
     ],
     description:
       "Get real-time weather data including temperature, conditions, and humidity",
