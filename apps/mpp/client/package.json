@@ -1,0 +1,21 @@
+{
+  "name": "MPPclient",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.0",
+  "devDependencies": {
+    "dotenv": "^17.4.2",
+    "tsx": "^4.23.12"
+  },
+  "dependencies": {
+    "mppx": "^0.8.18",
+    "viem": "^2.55.19"
+  }
+}

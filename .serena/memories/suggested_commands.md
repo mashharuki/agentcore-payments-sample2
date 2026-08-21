@@ -2,12 +2,13 @@ Run from repo root unless noted.
 
 ## Format / lint (whole repo, Biome)
 - `pnpm format` — biome format --write .
-- `pnpm check` — biome check --write .
+- `pnpm check` — biome check --write . (format + lint, auto-fix)
 - `pnpm knip` — unused files/exports/deps check
 - `pnpm jscpd` — copy-paste detection over `apps` and `packages`
 
 ## Per-workspace (via root filter scripts)
 - `pnpm cdk <script>` → runs in `apps/cdk` (e.g. `pnpm cdk build`, `pnpm cdk synth`, `pnpm cdk diff`, `pnpm cdk deploy`, `pnpm cdk destroy`, `pnpm cdk test`)
+  - Single test file: `pnpm --filter cdk exec jest test/cdk.test.ts` (jest config only picks up `**/*.test.ts` under `apps/cdk/test/`)
 - `pnpm x402server dev` → `apps/x402/server`, tsx watch
 - `pnpm x402client dev` → `apps/x402/client`, tsx (one-shot)
 - `pnpm facilitator dev|build|start` → `apps/x402/facilitator`

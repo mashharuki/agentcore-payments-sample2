@@ -10,7 +10,12 @@ import { ExactEvmScheme } from "@x402/evm/exact/facilitator";
 import { UptoEvmScheme } from "@x402/evm/upto/facilitator";
 import dotenv from "dotenv";
 import { Hono } from "hono";
-import { baseSepoliaChainInfo, chainInfo, getFacilitatorEvmSignerForChain, getViemClientForChain } from "./viem.js";
+import {
+  baseSepoliaChainInfo,
+  chainInfo,
+  getFacilitatorEvmSignerForChain,
+  getViemClientForChain,
+} from "./viem.js";
 
 dotenv.config();
 

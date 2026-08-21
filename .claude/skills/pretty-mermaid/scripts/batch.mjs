@@ -1,26 +1,34 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
-import { dirname, join, resolve } from 'path';
-import { fileURLToPath } from 'url';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { execSync } from "child_process";
+import { dirname, join, resolve } from "path";
+import { fileURLToPath } from "url";
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+} from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const skillRoot = join(__dirname, '..');
+const skillRoot = join(__dirname, "..");
 
 async function loadBeautifulMermaid() {
   try {
-    return await import('beautiful-mermaid');
+    return await import("beautiful-mermaid");
   } catch {}
 
-  console.error('[beautiful-mermaid] Dependency not found. Installing automatically...');
+  console.error(
+    "[beautiful-mermaid] Dependency not found. Installing automatically...",
+  );
   try {
-    execSync('npm install --no-fund --no-audit', {
+    execSync("npm install --no-fund --no-audit", {
       cwd: skillRoot,
-      stdio: ['pipe', 'pipe', 'inherit'],
+      stdio: ["pipe", "pipe", "inherit"],
       timeout: 120000,
     });
-    console.error('[beautiful-mermaid] Installed successfully.\n');
+    console.error("[beautiful-mermaid] Installed successfully.\n");
   } catch (e) {
     console.error(`[beautiful-mermaid] Auto-install failed: ${e.message}`);
     console.error(`Manual fix: cd ${skillRoot} && npm install`);
@@ -28,10 +36,18 @@ async function loadBeautifulMermaid() {
   }
 
   try {
-    const pkgPath = join(skillRoot, 'node_modules', 'beautiful-mermaid', 'dist', 'index.js');
+    const pkgPath = join(
+      skillRoot,
+      "node_modules",
+      "beautiful-mermaid",
+      "dist",
+      "index.js",
+    );
     return await import(pkgPath);
   } catch (e) {
-    console.error(`[beautiful-mermaid] Failed to load after install: ${e.message}`);
+    console.error(
+      `[beautiful-mermaid] Failed to load after install: ${e.message}`,
+    );
     process.exit(1);
   }
 }
@@ -41,7 +57,7 @@ function parseArgs() {
   const opts = {
     inputDir: null,
     outputDir: null,
-    format: 'svg',
+    format: "svg",
     theme: null,
     bg: null,
     fg: null,
@@ -55,16 +71,47 @@ function parseArgs() {
     const val = args[i + 1];
 
     switch (key) {
-      case '--input-dir': case '-i': opts.inputDir = val; i++; break;
-      case '--output-dir': case '-o': opts.outputDir = val; i++; break;
-      case '--format': case '-f': opts.format = val; i++; break;
-      case '--theme': case '-t': opts.theme = val; i++; break;
-      case '--bg': opts.bg = val; i++; break;
-      case '--fg': opts.fg = val; i++; break;
-      case '--transparent': opts.transparent = true; break;
-      case '--use-ascii': opts.useAscii = true; break;
-      case '--workers': case '-w': opts.workers = parseInt(val); i++; break;
-      case '--help': case '-h':
+      case "--input-dir":
+      case "-i":
+        opts.inputDir = val;
+        i++;
+        break;
+      case "--output-dir":
+      case "-o":
+        opts.outputDir = val;
+        i++;
+        break;
+      case "--format":
+      case "-f":
+        opts.format = val;
+        i++;
+        break;
+      case "--theme":
+      case "-t":
+        opts.theme = val;
+        i++;
+        break;
+      case "--bg":
+        opts.bg = val;
+        i++;
+        break;
+      case "--fg":
+        opts.fg = val;
+        i++;
+        break;
+      case "--transparent":
+        opts.transparent = true;
+        break;
+      case "--use-ascii":
+        opts.useAscii = true;
+        break;
+      case "--workers":
+      case "-w":
+        opts.workers = parseInt(val);
+        i++;
+        break;
+      case "--help":
+      case "-h":
         console.log(`Usage: node batch.mjs --input-dir <dir> --output-dir <dir> [options]
 
 Options:
@@ -82,11 +129,11 @@ Options:
   }
 
   if (!opts.inputDir) {
-    console.error('Error: --input-dir is required. Use --help for usage.');
+    console.error("Error: --input-dir is required. Use --help for usage.");
     process.exit(1);
   }
   if (!opts.outputDir) {
-    console.error('Error: --output-dir is required. Use --help for usage.');
+    console.error("Error: --output-dir is required. Use --help for usage.");
     process.exit(1);
   }
   if (!existsSync(opts.inputDir)) {
@@ -100,11 +147,11 @@ Options:
 async function renderFile(file, inputDir, outputDir, opts, lib) {
   const { renderMermaid, renderMermaidAscii, THEMES } = lib;
   const inputPath = join(inputDir, file);
-  const ext = opts.format === 'svg' ? '.svg' : '.txt';
+  const ext = opts.format === "svg" ? ".svg" : ".txt";
   const outputPath = join(outputDir, file.replace(/\.mmd$/, ext));
-  const input = readFileSync(inputPath, 'utf8');
+  const input = readFileSync(inputPath, "utf8");
 
-  if (opts.format === 'ascii') {
+  if (opts.format === "ascii") {
     const ascii = renderMermaidAscii(input, { useAscii: opts.useAscii });
     writeFileSync(outputPath, ascii);
   } else {
@@ -128,7 +175,7 @@ async function main() {
 
   mkdirSync(opts.outputDir, { recursive: true });
 
-  const files = readdirSync(opts.inputDir).filter(f => f.endsWith('.mmd'));
+  const files = readdirSync(opts.inputDir).filter((f) => f.endsWith(".mmd"));
   if (files.length === 0) {
     console.error(`No .mmd files found in ${opts.inputDir}`);
     process.exit(1);
@@ -143,16 +190,20 @@ async function main() {
   for (let i = 0; i < files.length; i += opts.workers) {
     const batch = files.slice(i, i + opts.workers);
     const results = await Promise.allSettled(
-      batch.map(file => renderFile(file, opts.inputDir, opts.outputDir, opts, lib))
+      batch.map((file) =>
+        renderFile(file, opts.inputDir, opts.outputDir, opts, lib),
+      ),
     );
 
     results.forEach((result, idx) => {
       const file = batch[idx];
-      if (result.status === 'fulfilled') {
+      if (result.status === "fulfilled") {
         console.log(`\u2713 ${file}`);
         success++;
       } else {
-        console.error(`\u2717 ${file}: ${result.reason?.message || result.reason}`);
+        console.error(
+          `\u2717 ${file}: ${result.reason?.message || result.reason}`,
+        );
         failed.push([file, result.reason?.message || String(result.reason)]);
       }
     });
@@ -169,7 +220,7 @@ async function main() {
   }
 }
 
-main().catch(e => {
-  console.error('Error:', e.message);
+main().catch((e) => {
+  console.error("Error:", e.message);
   process.exit(1);
 });

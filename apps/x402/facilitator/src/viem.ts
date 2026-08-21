@@ -98,4 +98,4 @@ export const getFacilitatorEvmSignerForChain = (viemClient: any) => {
     waitForTransactionReceipt: (args: { hash: `0x${string}` }) =>
       viemClient.waitForTransactionReceipt(args),
   });
-}
+};
