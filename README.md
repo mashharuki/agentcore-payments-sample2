@@ -70,7 +70,7 @@ x402決済を行う側（Payer）は、ローカルの秘密鍵で直接署名�
 ### 2. FoundationStackのデプロイ（IAMロール一式）
 
 ```bash
-pnpm cdk deploy FoundationStack
+pnpm cdk run deploy FoundationStack
 ```
 
 出力される `ResourceRetrievalRoleArn` を控える（次のステップで使う）。

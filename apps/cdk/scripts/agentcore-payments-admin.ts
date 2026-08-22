@@ -1,4 +1,6 @@
 #!/usr/bin/env tsx
+import { randomUUID } from "node:crypto";
+import * as readline from "node:readline/promises";
 /**
  * Amazon Bedrock AgentCore Payments のセットアップを行う管理者用CLI。
  *
@@ -16,8 +18,6 @@
  *   new-session         予算・有効期限付きの Payment Session を作成（TTYでの承認必須）
  *   status              Session残予算 / Instrument残高を確認（読み取り専用）
  */
-import { randomUUID } from "node:crypto";
-import * as readline from "node:readline/promises";
 import {
   BedrockAgentCoreClient,
   CreatePaymentInstrumentCommand,
@@ -36,10 +36,18 @@ const REGION = process.env.AWS_REGION ?? "us-west-2";
 const PAYMENT_MANAGER_NAME =
   process.env.PAYMENT_MANAGER_NAME ?? "agentcore-payments-sample-dev";
 
+// コントロール用のクライアントインスタンス
 const controlClient = new BedrockAgentCoreControlClient({ region: REGION });
+// データ用のクライアントインスタンス
 const dataClient = new BedrockAgentCoreClient({ region: REGION });
 
+/**
+ * プロンプトを取得するメソッド
+ * @param question 
+ * @returns 
+ */
 const prompt = async (question: string): Promise<string> => {
+  // 取得
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -56,7 +64,9 @@ const KEY_EOF = String.fromCharCode(4); // Ctrl+D
 const KEY_SIGINT = String.fromCharCode(3); // Ctrl+C
 const KEY_BACKSPACE = String.fromCharCode(127); // Delete/Backspace
 
-/** シークレット入力用。ターミナルにエコーせず、入力中は `*` を表示する。 */
+/** 
+ * シークレット入力用。ターミナルにエコーせず、入力中は `*` を表示する。
+ */
 const promptSecret = (question: string): Promise<string> =>
   new Promise((resolve, reject) => {
     process.stdout.write(question);
