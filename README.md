@@ -65,7 +65,7 @@ x402決済を行う側（Payer）は、ローカルの秘密鍵で直接署名�
 
 1. [Privyダッシュボード](https://dashboard.privy.io/) で本プロジェクト専用のアプリを新規作成する（他用途のアプリを流用しない）
 2. `App ID` と `App Secret` を控える
-3. **Wallet Infrastructure > Authorization** で新しいP-256鍵ペアを発行し、`Authorization ID` と `Authorization Private Key` を控える
+3. **Wallet Infrastructure > Keys and quorums** で新しいP-256鍵ペアを発行し、`Authorization ID` と `Authorization Private Key` を控える
 
 ### 2. FoundationStackのデプロイ（IAMロール一式）
 

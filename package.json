@@ -11,6 +11,7 @@
     "jscpd": "jscpd ./apps ./packages",
     "cdk": "pnpm --filter cdk",
     "mcp": "pnpm --filter mcp",
+    "facilitator": "pnpm --filter facilitator",
     "x402server": "pnpm --filter x402server",
     "x402client": "pnpm --filter x402client",
     "MPPserver": "pnpm --filter MPPserver",
