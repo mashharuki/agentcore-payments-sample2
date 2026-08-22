@@ -4,7 +4,10 @@ import type { AppConfig } from "../app-config";
 export const devConfig: AppConfig = {
   envName: "dev",
   region: process.env.CDK_DEFAULT_REGION ?? "us-west-2",
-  paymentManagerName: "agentcore-payments-sample-dev",
+  // AWS側がPaymentManager名に `^[a-zA-Z][a-zA-Z0-9]{0,47}$` を要求する（ハイフン不可）ため
+  // 英数字のみ。apps/cdk/scripts/agentcore-payments-admin.ts のPAYMENT_MANAGER_NAMEデフォルトと
+  // 必ず同じ値にすること（ResourceRetrievalRoleの信頼ポリシーがこの名前を前提にしているため）。
+  paymentManagerName: "AgentcorePaymentsSampleDev",
   // デプロイ前に必ず実際のウォレットアドレスへ差し替える（README参照）。
   // `SELLER_PAYTO_ADDRESS` 環境変数で上書き可能。
   sellerPayToAddress:

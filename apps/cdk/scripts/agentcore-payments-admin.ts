@@ -33,8 +33,13 @@ import {
 } from "@aws-sdk/client-bedrock-agentcore-control";
 
 const REGION = process.env.AWS_REGION ?? "us-west-2";
+// PaymentManagerのnameはAWS側が `^[a-zA-Z][a-zA-Z0-9]{0,47}$` を要求する
+// （ハイフン・アンダースコア不可。実際に `pnpm --filter cdk payments:admin setup-connector` を
+// 実行し、CreatePaymentManagerのバリデーションエラーで確認済み）。
+// apps/cdk/lib/config/environments/dev.ts の appConfig.paymentManagerName と必ず同じ値にすること
+// （ResourceRetrievalRoleの信頼ポリシーがこの名前を前提にpayment-manager ARNパターンを組むため）。
 const PAYMENT_MANAGER_NAME =
-  process.env.PAYMENT_MANAGER_NAME ?? "agentcore-payments-sample-dev";
+  process.env.PAYMENT_MANAGER_NAME ?? "AgentcorePaymentsSampleDev";
 
 // コントロール用のクライアントインスタンス
 const controlClient = new BedrockAgentCoreControlClient({ region: REGION });
@@ -180,7 +185,8 @@ const cmdSetupConnector = async (): Promise<void> => {
   const connector = await controlClient.send(
     new CreatePaymentConnectorCommand({
       paymentManagerId: manager.paymentManagerId,
-      name: `${PAYMENT_MANAGER_NAME}-privy-connector`,
+      // PaymentManagerと同じ命名制約（英数字のみ）を持つ可能性があるため、ここもハイフンを避ける
+      name: `${PAYMENT_MANAGER_NAME}PrivyConnector`,
       type: "StripePrivy",
       credentialProviderConfigurations: [
         {
