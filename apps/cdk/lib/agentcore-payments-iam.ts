@@ -56,8 +56,15 @@ export const createAgentCorePaymentsIamRoles = (
   // ========================================
   // ResourceRetrievalRole
   // AgentCore Payments (bedrock-agentcore.amazonaws.com) が引き受けるサービスロール。
-  // 基本権限・コネクタごとの権限はPaymentManager/Connector作成時にAWS側が自動付与するため、
-  // ここでは信頼ポリシーのみを用意する。
+  //
+  // 【重要】AWS公式ドキュメント「IAM roles for AgentCore payments」の "Using an existing role" の通り、
+  // 自前で用意したロールARNを CreatePaymentManager に渡す場合、基本権限(base permissions)・
+  // コネクタごとの権限は AWS 側で自動付与されない（console でロールを自動生成させた場合のみ付与）。
+  // CreatePaymentManager がロールの identity-based policy を事前検証するため、
+  // `bedrock-agentcore:CreateWorkloadIdentity` 等が無いと
+  // "The execution role is missing the required permission" で失敗する。
+  // → ここで base permissions + per-connector permissions を明示的に付与する。
+  // https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-iam-roles.html
   // ========================================
   const resourceRetrievalRole = new iam.Role(scope, "ResourceRetrievalRole", {
     roleName: `${paymentManagerName}-resource-retrieval-role`,
@@ -85,6 +92,73 @@ export const createAgentCorePaymentsIamRoles = (
       },
     ),
   });
+
+  const bedrockAgentCoreArn = (resourceName: string): string =>
+    cdk.Arn.format(
+      { service: "bedrock-agentcore", resource: resourceName },
+      stack,
+    );
+
+  // base permissions: ワークロードアイデンティティ / 支払いトークン取得
+  // （AWS公式ドキュメント "Base permissions (attached on Payment Manager creation)" と等価）
+  resourceRetrievalRole.addToPolicy(
+    new iam.PolicyStatement({
+      sid: "PaymentsWorkloadIdentityAndToken",
+      actions: [
+        "bedrock-agentcore:CreateWorkloadIdentity",
+        "bedrock-agentcore:DeleteWorkloadIdentity",
+        "bedrock-agentcore:GetWorkloadAccessToken",
+        "bedrock-agentcore:GetResourcePaymentToken",
+      ],
+      resources: [
+        bedrockAgentCoreArn("token-vault/default"),
+        bedrockAgentCoreArn("token-vault/default/paymentcredentialprovider/*"),
+        bedrockAgentCoreArn("workload-identity-directory/default"),
+        bedrockAgentCoreArn(
+          "workload-identity-directory/default/workload-identity/*",
+        ),
+      ],
+    }),
+  );
+
+  // base permissions: コネクタ用の資格情報プロバイダーのプロビジョニング
+  resourceRetrievalRole.addToPolicy(
+    new iam.PolicyStatement({
+      sid: "PaymentsCredentialProviderProvisioning",
+      actions: [
+        "bedrock-agentcore:CreatePaymentCredentialProvider",
+        "bedrock-agentcore:GetPaymentCredentialProvider",
+        "bedrock-agentcore:TagResource",
+      ],
+      resources: [
+        bedrockAgentCoreArn("token-vault/default"),
+        bedrockAgentCoreArn("token-vault/default/paymentcredentialprovider/*"),
+      ],
+    }),
+  );
+
+  // per-connector permissions: コネクタが参照する資格情報の実体（Secrets Manager）へのアクセス。
+  // AgentCoreが内部管理するシークレット（bedrock-agentcore-identity*）に限定する。
+  resourceRetrievalRole.addToPolicy(
+    new iam.PolicyStatement({
+      sid: "PaymentsConnectorSecretsAccess",
+      actions: ["secretsmanager:GetSecretValue"],
+      resources: [
+        cdk.Arn.format(
+          {
+            service: "secretsmanager",
+            resource: "secret",
+            resourceName: "bedrock-agentcore-identity*",
+            arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME,
+          },
+          stack,
+        ),
+      ],
+      conditions: {
+        StringEquals: { "aws:ResourceAccount": stack.account },
+      },
+    }),
+  );
 
   // ========================================
   // ControlPlaneRole（管理者）

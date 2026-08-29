@@ -125,6 +125,21 @@ Validations.of(foundationStack).acknowledge(
     reason:
       "AWS公式ドキュメント「IAM roles for AgentCore payments」が推奨するポリシーそのもの（ControlPlaneRole。design.md 7.2節）",
   },
+  {
+    id: `AwsSolutions-IAM5[Resource::arn:aws:bedrock-agentcore:${appConfig.region}:${env.account}:token-vault/default/paymentcredentialprovider/*]`,
+    reason:
+      "AWS公式ドキュメント「IAM roles for AgentCore payments」の ResourceRetrievalRole base permissions そのもの。自前ロールをCreatePaymentManagerに渡す場合はAWS側で自動付与されないためCDKで付与する（design.md 7.2節）",
+  },
+  {
+    id: `AwsSolutions-IAM5[Resource::arn:aws:bedrock-agentcore:${appConfig.region}:${env.account}:workload-identity-directory/default/workload-identity/*]`,
+    reason:
+      "AWS公式ドキュメント「IAM roles for AgentCore payments」の ResourceRetrievalRole base permissions（CreateWorkloadIdentity/GetWorkloadAccessToken/GetResourcePaymentToken）そのもの。個々のworkload-identity名は実行時までわからない（design.md 7.2節）",
+  },
+  {
+    id: `AwsSolutions-IAM5[Resource::arn:aws:secretsmanager:${appConfig.region}:${env.account}:secret:bedrock-agentcore-identity*]`,
+    reason:
+      "AWS公式ドキュメント「IAM roles for AgentCore payments」の per-connector permissions。AgentCoreが内部管理する資格情報シークレット（bedrock-agentcore-identity*）に限定し、aws:ResourceAccountで自アカウントに制限済み（design.md 7.2節）",
+  },
 );
 
 // X402WeatherStack・McpStack共通: ALB／セキュリティグループ／ECSタスク実行ロール／非機密の環境変数

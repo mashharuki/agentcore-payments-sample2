@@ -30,6 +30,8 @@ import {
   CreatePaymentConnectorCommand,
   CreatePaymentCredentialProviderCommand,
   CreatePaymentManagerCommand,
+  DeletePaymentCredentialProviderCommand,
+  paginateListPaymentCredentialProviders,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 
 const REGION = process.env.AWS_REGION ?? "us-west-2";
@@ -54,8 +56,8 @@ const dataClient = new BedrockAgentCoreClient({ region: REGION });
 
 /**
  * プロンプトを取得するメソッド
- * @param question 
- * @returns 
+ * @param question
+ * @returns
  */
 const prompt = async (question: string): Promise<string> => {
   // 取得
@@ -75,7 +77,7 @@ const KEY_EOF = String.fromCharCode(4); // Ctrl+D
 const KEY_SIGINT = String.fromCharCode(3); // Ctrl+C
 const KEY_BACKSPACE = String.fromCharCode(127); // Delete/Backspace
 
-/** 
+/**
  * シークレット入力用。ターミナルにエコーせず、入力中は `*` を表示する。
  */
 const promptSecret = (question: string): Promise<string> =>
@@ -137,6 +139,49 @@ const requireTtyApproval = async (summary: string): Promise<void> => {
   }
 };
 
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/** 指定名の PaymentCredentialProvider が存在するか */
+const credentialProviderExists = async (name: string): Promise<boolean> => {
+  for await (const page of paginateListPaymentCredentialProviders(
+    { client: controlClient },
+    {},
+  )) {
+    if (page.credentialProviders?.some((p) => p.name === name)) return true;
+  }
+  return false;
+};
+
+/**
+ * setup-connector は途中で失敗しても 1/3 の PaymentCredentialProvider だけは残る。
+ * 同名の Create はできない（ConflictException）ため、再実行時に手で消す手間が発生していた。
+ * ここで「同名の既存プロバイダがあれば削除してから作り直す」冪等化を行う。
+ * 削除が結果整合で反映されるまで待ってから戻る。
+ * 削除自体に失敗する（例: まだ Connector から参照されている）場合はそのままエラーを送出する。
+ */
+const deleteCredentialProviderIfExists = async (
+  name: string,
+): Promise<void> => {
+  if (!(await credentialProviderExists(name))) return;
+
+  console.log(
+    `  既存の PaymentCredentialProvider "${name}" を削除して作り直します...`,
+  );
+  await controlClient.send(
+    new DeletePaymentCredentialProviderCommand({ name }),
+  );
+
+  // 削除の反映を待つ（最大 ~30 秒）。待たずに Create すると ConflictException になることがある。
+  for (let i = 0; i < 15; i++) {
+    if (!(await credentialProviderExists(name))) return;
+    await sleep(2000);
+  }
+  throw new Error(
+    `PaymentCredentialProvider "${name}" の削除が時間内に反映されませんでした。少し待って再実行してください。`,
+  );
+};
+
 const cmdSetupConnector = async (): Promise<void> => {
   const roleArn =
     process.env.RESOURCE_RETRIEVAL_ROLE_ARN ??
@@ -160,9 +205,11 @@ const cmdSetupConnector = async (): Promise<void> => {
   );
 
   console.log("\n1/3 PaymentCredentialProvider を作成しています...");
+  const credentialProviderName = `${PAYMENT_MANAGER_NAME}-privy-credentials`;
+  await deleteCredentialProviderIfExists(credentialProviderName);
   const credentialProvider = await controlClient.send(
     new CreatePaymentCredentialProviderCommand({
-      name: `${PAYMENT_MANAGER_NAME}-privy-credentials`,
+      name: credentialProviderName,
       credentialProviderVendor: "StripePrivy",
       providerConfigurationInput: {
         stripePrivyConfiguration: {
