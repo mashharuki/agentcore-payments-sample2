@@ -69,6 +69,8 @@ x402決済を行う側（Payer）は、ローカルの秘密鍵で直接署名�
 
 ### 2. FoundationStackのデプロイ（IAMロール一式）
 
+> リージョンは us-west-2で統一してください！
+
 ```bash
 pnpm cdk run deploy 'FoundationStack'
 ```

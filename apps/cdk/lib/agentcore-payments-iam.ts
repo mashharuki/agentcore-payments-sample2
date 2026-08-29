@@ -66,11 +66,16 @@ export const createAgentCorePaymentsIamRoles = (
       {
         StringEquals: { "aws:SourceAccount": stack.account },
         ArnLike: {
+          // CreatePaymentManager が返す ARN のリソース部分は、名前ベース
+          // （`<name>-<suffix>`）とも AWS 生成 ID（`paymentmanager-xxxx`）とも取れる形が
+          // 混在しており、`${paymentManagerName}-*` に絞ると環境によって信頼ポリシーが
+          // 一致せず role validation に失敗する。account + region + サービスまでで
+          // confused deputy を防ぎ、payment-manager 配下はワイルドカードにする。
           "aws:SourceArn": cdk.Arn.format(
             {
               service: "bedrock-agentcore",
               resource: "payment-manager",
-              resourceName: `${paymentManagerName}-*`,
+              resourceName: "*",
               region: stack.region,
               account: stack.account,
             },

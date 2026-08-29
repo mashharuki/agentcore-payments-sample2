@@ -414,6 +414,12 @@ flowchart TB
 - `ResourceRetrievalRole`：`bedrock-agentcore.amazonaws.com` を信頼するサービスロール。`CreatePaymentManager` の `roleArn` に渡すため、PaymentManager作成前にCDKで用意しておく（ARNを `CfnOutput` で出力し、管理者スクリプトに渡す）。ワークロードアイデンティティ・支払いトークン取得系の権限が、PaymentManager/Connector作成時にAWS側で自動付与される。
 - `ControlPlaneRole`：`CreatePaymentManager/CreatePaymentConnector/CreatePaymentCredentialProvider` 等。個人検証プロジェクトでは、開発者自身のIAMユーザーに直接同等ポリシーを付与する簡易運用でも可（CDKでのロール化は将来チーム利用時に対応）。
 
+> **リージョン制約（ハマりどころ）**：AgentCore Payments は **us-east-1 / us-west-2 / eu-central-1 / ap-southeast-2** でのみ提供され、**ap-northeast-1（東京）では未提供**（`ListPaymentCredentialProviders` が `UnknownOperationException` を返す）。本プロジェクトは `appConfig.region = "us-west-2"` に固定し、`agentcore-payments-admin.ts` のデフォルト（`AWS_REGION ?? "us-west-2"`）と一致させている。
+>
+> `cdk deploy` 時に `CDK_DEFAULT_REGION` がローカルプロファイルのリージョン（東京など）に落ちると、`FoundationStack` が東京にデプロイされ、`ResourceRetrievalRole` の信頼ポリシー `aws:SourceArn`（`stack.region` で組む）が東京固定になる。一方 admin スクリプトは us-west-2 で `CreatePaymentManager` を呼ぶため、AgentCore が role を assume できず **`Role validation failed for '...resource-retrieval-role'. Please verify that ... its trust policy allows assumption by this service.`** で失敗する。デプロイは必ず `AWS_REGION=us-west-2 CDK_DEFAULT_REGION=us-west-2 pnpm --filter cdk exec cdk deploy ...` で行うこと。
+>
+> なお `aws:SourceArn` の payment-manager 部分は、`CreatePaymentManager` の戻り ARN 形式（名前ベース `<name>-<suffix>` か AWS 生成 ID `paymentmanager-xxxx` か）が環境により揺れるため、`payment-manager/*` のワイルドカードにしている（account + region + サービスまでで confused deputy は防げる）。
+
 **管理者スクリプト（`apps/cdk/scripts/agentcore-payments-admin.ts`、人間がTTYで実行）：**
 
 `@aws-sdk/client-bedrock-agentcore-control`（コントロールプレーン）と `@aws-sdk/client-bedrock-agentcore`

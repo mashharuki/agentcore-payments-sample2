@@ -3,7 +3,13 @@ import type { AppConfig } from "../app-config";
 
 export const devConfig: AppConfig = {
   envName: "dev",
-  region: process.env.CDK_DEFAULT_REGION ?? "us-west-2",
+  // AgentCore Payments は一部リージョンでしか提供されていない（us-east-1 / us-west-2 /
+  // eu-central-1 / ap-southeast-2。ap-northeast-1 は未提供）。CDK_DEFAULT_REGION 経由で
+  // ローカルプロファイルのリージョン（例: 東京）に落ちると、FoundationStack が生成する
+  // ResourceRetrievalRole の信頼ポリシー（aws:SourceArn を stack.region で組む）と、
+  // agentcore-payments-admin.ts が叩く us-west-2 のエンドポイントが食い違い、
+  // CreatePaymentManager が "Role validation failed" で失敗する。混線を防ぐため固定する。
+  region: "us-west-2",
   // AWS側がPaymentManager名に `^[a-zA-Z][a-zA-Z0-9]{0,47}$` を要求する（ハイフン不可）ため
   // 英数字のみ。apps/cdk/scripts/agentcore-payments-admin.ts のPAYMENT_MANAGER_NAMEデフォルトと
   // 必ず同じ値にすること（ResourceRetrievalRoleの信頼ポリシーがこの名前を前提にしているため）。

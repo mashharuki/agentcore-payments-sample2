@@ -22,6 +22,11 @@ export type ServiceConfig = {
 
 export type AppConfig = {
   readonly envName: "dev" | "staging" | "prod";
+  /**
+   * 全スタックのデプロイ先リージョン。AgentCore Payments が提供されているリージョン
+   * （us-east-1 / us-west-2 / eu-central-1 / ap-southeast-2）に固定すること。
+   * agentcore-payments-admin.ts のデフォルト（us-west-2）と必ず一致させる。
+   */
   readonly region: string;
   /**
    * Amazon Bedrock AgentCore Payments の PaymentManager 名（固定）。

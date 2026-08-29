@@ -33,11 +33,17 @@ import {
 } from "@aws-sdk/client-bedrock-agentcore-control";
 
 const REGION = process.env.AWS_REGION ?? "us-west-2";
+// このスクリプトが叩くリージョンは、FoundationStack のデプロイ先
+// （apps/cdk/lib/config/environments/dev.ts の region、現状 us-west-2 固定）と必ず一致させること。
+// 食い違うと ResourceRetrievalRole の信頼ポリシー（aws:SourceArn を stack.region で組む）と
+// PaymentManager の作成先リージョンがずれ、CreatePaymentManager が
+// "Role validation failed ... trust policy allows assumption by this service" で失敗する。
+
 // PaymentManagerのnameはAWS側が `^[a-zA-Z][a-zA-Z0-9]{0,47}$` を要求する
 // （ハイフン・アンダースコア不可。実際に `pnpm --filter cdk payments:admin setup-connector` を
 // 実行し、CreatePaymentManagerのバリデーションエラーで確認済み）。
-// apps/cdk/lib/config/environments/dev.ts の appConfig.paymentManagerName と必ず同じ値にすること
-// （ResourceRetrievalRoleの信頼ポリシーがこの名前を前提にpayment-manager ARNパターンを組むため）。
+// ResourceRetrievalRole 等のロール名のベースにも使うため、
+// apps/cdk/lib/config/environments/dev.ts の appConfig.paymentManagerName と必ず同じ値にすること。
 const PAYMENT_MANAGER_NAME =
   process.env.PAYMENT_MANAGER_NAME ?? "AgentcorePaymentsSampleDev";
 
