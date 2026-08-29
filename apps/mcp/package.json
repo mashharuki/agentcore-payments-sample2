@@ -1,13 +1,14 @@
 {
   "name": "mcp",
   "version": "1.0.0",
-  "description": "",
+  "description": "x402で保護された天気APIを get_weather ツールとして公開するMCPサーバー（決済はAgentCore Payments経由）",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "call": "tsx scripts/callGetWeather.ts"
   },
   "keywords": [],
-  "author": "",
+  "author": "mashharuki",
   "license": "MIT",
   "packageManager": "pnpm@10.33.0",
   "dependencies": {

@@ -154,28 +154,66 @@ pnpm x402client dev
 
 ## ゴール②: Claude CodeからMCP経由での決済確認
 
-`apps/mcp/.env` を新規作成し、以下を設定する（`PAYWALL_PATH`は不要、`PORT`省略時は4024）:
+### 2-1. `apps/mcp/.env` を用意する
+
+ゴール①で動いた `apps/x402/client/.env` をそのまま流用できる（`PAYWALL_PATH` は余分だが無視される。`PORT` 省略時は 4024）:
+
+```bash
+cp apps/x402/client/.env apps/mcp/.env
+```
+
+または手動で（`apps/mcp/.env.example` 参照）:
 
 ```bash
 AWS_REGION=us-west-2
 PAYMENT_MANAGER_ARN=<ゴール①と同じ>
 PAYMENT_INSTRUMENT_ID=<ゴール①と同じ>
-PAYMENT_SESSION_ID=<ゴール①と同じ>
+PAYMENT_SESSION_ID=<ゴール①と同じ（失効していたら new-session で再発行）>
 PAYMENT_USER_ID=<ゴール①と同じ>
 PAYWALL_API_BASE_URL=http://localhost:4021
+PORT=4024
 ```
+
+### 2-2. 3サービスを起動する（別ターミナル各1つ）
 
 ```bash
-pnpm mcp dev
+pnpm x402server dev     # :4021 リソースサーバー
+pnpm facilitator dev    # :4022 決済の検証・オンチェーン実行
+pnpm mcp dev            # :4024 MCPサーバー（get_weather ツール）
 ```
 
-別ターミナルでClaude Codeに接続する:
+### 2-3. Claude Code を使わず疎通確認だけしたい場合
 
 ```bash
-claude mcp add --transport http weather-x402 http://localhost:4024/mcp
+pnpm --filter mcp call            # get_weather を1回呼ぶ（WEATHER_CITY で都市指定可）
 ```
 
-Claude Codeから `get_weather` ツールを呼び出すと、内部でAgentCore Payments経由の決済が行われ、天気データと決済メタ情報（`processPaymentId`）が返る。署名済みプルーフ自体はモデルには渡らない。
+`{"city":"Tokyo","weather":"sunny","temperature":70,"payment":{"settled":true,"processPaymentId":"..."}}` が返れば、
+MCP → x402（402）→ AgentCore Payments（ProcessPayment）→ facilitator によるオンチェーン決済（Base Sepolia の USDC $0.01）→ 天気データ返却、まで一気通貫で動いている。
+
+### 2-4. Claude Code に接続する
+
+`apps/mcp/.mcp.example.json` にこの MCP サーバーの定義（`x402-weather` → `http://localhost:4024/mcp`）がある。いずれかの方法で登録する:
+
+```bash
+# 方法A: リポジトリ直下の .mcp.json として使う（Claude Code が自動検出。要承認）
+cp apps/mcp/.mcp.example.json .mcp.json
+
+# 方法B: CLI で追加する
+claude mcp add --transport http x402-weather http://localhost:4024/mcp
+```
+
+`claude mcp list` で `x402-weather` を確認する（`⏸ Pending approval` の場合は Claude Code 上で承認 → health check が通る）。
+
+承認後、Claude Code から `get_weather`（`mcp__x402-weather__get_weather`）を呼び出すと、内部で AgentCore Payments 経由の決済が行われ、天気データと決済メタ情報（`processPaymentId`）が返る。署名済みプルーフや `PAYMENT-SIGNATURE` ヘッダーの生データはモデルには渡らない。
+
+> スタンドアロンの **Claude Desktop アプリ**（Claude Code ではない方）から使う場合は、`claude_desktop_config.json` にローカル HTTP を橋渡しする `mcp-remote` を設定する:
+> ```json
+> { "mcpServers": { "x402-weather": {
+>   "command": "npx",
+>   "args": ["-y", "mcp-remote", "http://localhost:4024/mcp", "--allow-http"]
+> } } }
+> ```
 
 ## AWSへのデプロイ（本番相当のホスティング）
 
@@ -223,3 +261,8 @@ pnpm jscpd    # コピペ検出
 ## ライセンス
 
 [MIT](./LICENSE)
+
+
+## x402によるステーブルコイン決済の記録
+
+[BaseScan - 0x64d08bb4071635890366ade57daba52c75a9a6fe3e5202a87b706df42edb78e0](https://sepolia.basescan.org/tx/0x64d08bb4071635890366ade57daba52c75a9a6fe3e5202a87b706df42edb78e0)
