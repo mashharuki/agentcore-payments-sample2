@@ -1,147 +1,209 @@
 # agentcore-payments-sample2
 
-Amazon Bedrock AgentCore Payments を使って x402 決済プロトコルを一気通貫で検証するためのリポジトリ。
+**English** ・ [日本語](./README_ja.md)
 
-- x402で保護された天気予報API（`GET /weather`、$0.01、Base Sepolia）
-- 決済の実行は **Amazon Bedrock AgentCore Payments**（`ProcessPayment` API）に委譲し、Wallet Providerには **Privy**（`StripePrivy` コネクタ）を使用
-- Claude Codeからは **MCP** 経由でこの決済フローを呼び出せる
+An end-to-end proof that an AI agent can pay for a paywalled API on its own,
+safely, using **Amazon Bedrock AgentCore Payments** and the **x402** payment
+protocol.
 
-設計の詳細（アーキテクチャ図・シーケンス図・採用AWSサービス一覧・IAM設計）は [`docs/design.md`](docs/design.md) を、要件は [`docs/requirement.md`](docs/requirement.md) を参照してください。
+- A weather API protected by x402 (`GET /weather`, $0.01, Base Sepolia).
+- Payment execution is delegated to **Amazon Bedrock AgentCore Payments** (the
+  `ProcessPayment` API); the wallet provider is **Privy** (`StripePrivy`
+  connector).
+- The whole flow is callable from **Claude Code** over **MCP**.
 
-## モノレポ構成
+Spend limits are enforced by AWS — a budgeted, expiring **Payment Session** and a
+runtime IAM role that can *only* call `ProcessPayment` — not by prompt
+engineering. The model never sees a private key or the signed payment proof.
+
+```mermaid
+flowchart TB
+    Claude["Claude / Claude Code<br/>(MCP client)"] -->|"1 get_weather(city)"| MCP["MCP server :4024<br/>get_weather tool"]
+    MCP -->|"2 GET /weather"| RS["x402 resource server :4021<br/>GET /weather = $0.01"]
+    RS -->|"3 HTTP 402 + x402 terms"| MCP
+    MCP -->|"4 ProcessPayment"| ACP["Amazon Bedrock<br/>AgentCore Payments"]
+    ACP -->|"5 signed x402 v2 proof"| MCP
+    ACP -.->|"delegated signing"| Wallet["Stripe Privy<br/>embedded wallet"]
+    MCP -->|"6 retry + PAYMENT-SIGNATURE"| RS
+    RS -->|"7 verify / settle"| FAC["x402 facilitator :4022<br/>viem"]
+    FAC -->|"8 USDC transfer"| Chain["Base Sepolia"]
+    RS -->|"9 200 OK + weather"| MCP
+    MCP -->|"10 weather + {settled, processPaymentId}"| Claude
+    ACP --- IAM["IAM 4-role separation<br/>runtime role = ProcessPayment only"]
+    CDK["CloudFormation / AWS CDK<br/>VPC · ECS · Secrets Manager"] -.-> RS
+```
+
+For the full design (architecture, sequence diagrams, AWS services, IAM model)
+see [`docs/design.md`](docs/design.md); the challenge write-up is in
+[`docs/builder-showcase-article.md`](docs/builder-showcase-article.md).
+
+## Monorepo layout
 
 ```
 apps/
   x402/
-    server/       # Seller: x402で保護された天気予報API（Hono）
-    facilitator/  # Seller: x402の /verify /settle を実行する決済実行基盤（Base Sepolia）
-    client/       # Payer: 検証用スクリプト（ゴール①）
-  mcp/            # Payer: MCPサーバー。Claude Codeから呼ばれ内部で決済を代行する（ゴール②）
-  mpp/            # MPP（Machine Payment Protocol）のリファレンス実装。本フェーズでは変更しない
-  cdk/            # AWSインフラ（ECS Fargate + ALB + 自前ECR + AgentCore Payments用IAM）
+    server/       # Seller: the x402-protected weather API (Hono)
+    facilitator/  # Seller: runs x402 /verify and /settle on-chain (Base Sepolia)
+    client/       # Payer: verification script (Goal 1)
+  mcp/            # Payer: MCP server called from Claude Code; pays on the agent's behalf (Goal 2)
+  mpp/            # MPP (Machine Payment Protocol) reference impl. Not touched in this phase
+  cdk/            # AWS infra (ECS Fargate + ALB + own ECR + AgentCore Payments IAM)
 packages/
-  shared/         # zodバリデーション・AgentCore Payments連携ヘルパー（processX402Payment等）
+  shared/         # zod validation + AgentCore Payments helpers (processX402Payment, ...)
 ```
 
-## 前提条件
+## Prerequisites
 
-- Node.js 22以降、`pnpm@10.33.0`（`corepack enable` 推奨）
-- AWSアカウント、`aws configure` 済みのCLIプロファイル（Amazon Bedrock AgentCore Payments 提供リージョンであること）
-- [Privyダッシュボード](https://dashboard.privy.io/) のアカウント（Wallet Provider用）
-- Base Sepoliaのテストネット資金（USDC・ETH）— [Circle Faucet](https://faucet.circle.com/) 等で取得
-- AWSへのデプロイを行う場合はDocker（`cdk deploy`が内部でDockerイメージをビルドするため）
+- Node.js 22+, `pnpm@10.33.0` (`corepack enable` recommended)
+- An AWS account and a configured CLI profile (`aws configure`) in a region where
+  Amazon Bedrock AgentCore Payments is available
+- A [Privy dashboard](https://dashboard.privy.io/) account (wallet provider)
+- Base Sepolia testnet funds (USDC + ETH) — e.g. from the
+  [Circle Faucet](https://faucet.circle.com/)
+- Docker, if you deploy to AWS (`cdk deploy` builds Docker images)
 
 ```bash
-git clone <このリポジトリ>
+git clone https://github.com/mashharuki/agentcore-payments-sample2.git
 cd agentcore-payments-sample2
 pnpm install
 ```
 
-## クイックスタート（ローカル）
+## Quickstart (local)
 
-3つのサービスをそれぞれ別ターミナルで起動する。
+Run the two seller services in separate terminals.
 
 ```bash
-# 1. facilitator（決済の検証・オンチェーン実行）
+# 1. facilitator (verifies payments and settles them on-chain)
 cp apps/x402/facilitator/.env.example apps/x402/facilitator/.env
-# .env に EVM_PRIVATE_KEY（ガス代支払い用EOA、Base SepoliaのETH残高が必要）を設定
+# set EVM_PRIVATE_KEY in .env (gas-paying EOA, needs Base Sepolia ETH)
 pnpm facilitator dev
 
-# 2. resource server（x402で保護された /weather API）
+# 2. resource server (the x402-protected /weather API)
 cp apps/x402/server/.env.example apps/x402/server/.env
-# .env に FACILITATOR_URL=http://localhost:4022、EVM_ADDRESS（受取ウォレット）を設定
+# set FACILITATOR_URL=http://localhost:4022 and EVM_ADDRESS (payTo wallet) in .env
 pnpm x402server dev
 ```
 
-この時点で `curl http://localhost:4021/weather` を叩くと `402 Payment Required` が返る（`payment-required` ヘッダーにBase64エンコードされた決済要件が入る）ことを確認できる。実際に支払いを完了するには、次の「AgentCore Paymentsのセットアップ」が必要。
+At this point `curl http://localhost:4021/weather` returns `402 Payment Required`
+(the payment terms are base64-encoded in the `payment-required` header). To
+actually complete a payment, set up AgentCore Payments below.
 
-## Amazon Bedrock AgentCore Payments のセットアップ
+## Amazon Bedrock AgentCore Payments setup
 
-x402決済を行う側（Payer）は、ローカルの秘密鍵で直接署名するのではなく、AWSが管理する **AgentCore Payments** の `ProcessPayment` APIを呼び出して決済プルーフを取得する。裏側の署名は Privy（`StripePrivy` コネクタ）が行う。
+The payer does not sign with a local private key. It calls the AWS-managed
+**AgentCore Payments** `ProcessPayment` API to obtain a payment proof; the
+underlying signing is done by Privy (the `StripePrivy` connector).
 
-セットアップは以下の順序で行う。すべて `apps/cdk/scripts/agentcore-payments-admin.ts`（`pnpm --filter cdk payments:admin <subcommand>`）を**人間がTTYで**実行する（design.md 7.2節の4ロールIAM分離モデルにより、対話的な承認や資格情報入力を必須にしている）。
+Run the steps below in order. Everything goes through
+`apps/cdk/scripts/agentcore-payments-admin.ts`
+(`pnpm --filter cdk payments:admin <subcommand>`), executed **by a human on a
+TTY** — the four-role IAM separation model (design.md §7.2) makes interactive
+approval and credential entry mandatory.
 
-### 1. Privyアプリの作成
+> **Use `us-west-2` for everything.** AgentCore Payments is only available in
+> `us-east-1 / us-west-2 / eu-central-1 / ap-southeast-2` (not `ap-northeast-1`).
 
-1. [Privyダッシュボード](https://dashboard.privy.io/) で本プロジェクト専用のアプリを新規作成する（他用途のアプリを流用しない）
-2. `App ID` と `App Secret` を控える
-3. **Wallet Infrastructure > Keys and quorums** で新しいP-256鍵ペアを発行し、`Authorization ID` と `Authorization Private Key` を控える
+### 1. Create a Privy app
 
-### 2. FoundationStackのデプロイ（IAMロール一式）
+1. In the [Privy dashboard](https://dashboard.privy.io/), create a **dedicated**
+   app for this project (do not reuse an app that serves other purposes).
+2. Note the `App ID` and `App Secret`.
+3. Under **Wallet Infrastructure > Keys and quorums**, generate a new P-256 key
+   pair and note the `Authorization ID` and `Authorization Private Key`.
 
-> リージョンは us-west-2で統一してください！
+### 2. Deploy FoundationStack (the IAM roles)
 
 ```bash
-pnpm cdk run deploy 'FoundationStack'
+AWS_REGION=us-west-2 CDK_DEFAULT_REGION=us-west-2 pnpm cdk run deploy 'FoundationStack'
 ```
 
-出力される `ResourceRetrievalRoleArn` を控える（次のステップで使う）。
+Note the `ResourceRetrievalRoleArn` output (used in the next step).
 
-### 3. PaymentManager / PaymentConnector の作成
+### 3. Create the PaymentManager / PaymentConnector
 
 ```bash
 cd apps/cdk
-RESOURCE_RETRIEVAL_ROLE_ARN=<手順2で控えたARN> pnpm payments:admin setup-connector
+RESOURCE_RETRIEVAL_ROLE_ARN=<ARN from step 2> pnpm payments:admin setup-connector
 ```
 
-Privyの資格情報（App ID / App Secret / Authorization ID / Authorization Private Key）の入力を求められる。入力はターミナルにエコーされず、このプロセスの外には保存されない。完了すると `PAYMENT_MANAGER_ARN` と `PAYMENT_CONNECTOR_ID` が表示されるので控える。
+You will be prompted for the Privy credentials (App ID / App Secret /
+Authorization ID / Authorization Private Key). Input is not echoed and is never
+stored outside the process. On success it prints `PAYMENT_MANAGER_ARN` and
+`PAYMENT_CONNECTOR_ID` — note them.
 
-### 4. Payment Instrument（ウォレット）の作成・入金・署名権限の付与
+### 4. Create the Payment Instrument (wallet), fund it, and grant signing
 
 ```bash
-PAYMENT_MANAGER_ARN=<手順3のARN> PAYMENT_CONNECTOR_ID=<手順3のID> pnpm payments:admin create-instrument
+PAYMENT_MANAGER_ARN=<step 3 ARN> PAYMENT_CONNECTOR_ID=<step 3 ID> pnpm payments:admin create-instrument
 ```
 
-利用者ID（自分のメールアドレス等）とウォレット連携用メールアドレスを入力すると `PAYMENT_INSTRUMENT_ID` が表示される。
+Enter a user ID (e.g. your email) and a wallet-linking email; it prints
+`PAYMENT_INSTRUMENT_ID`.
 
-**このプロジェクトは Stripe (Privy) コネクタを使うため、Coinbase のような「開くだけ」のホスト済み `redirectUrl` は返ってこない**（`create-instrument` は `(redirectUrlが返されませんでした…)` と表示する。これは仕様）。入金と署名権限の付与は、Privy のリファレンスフロントエンド（Next.js）をローカル起動して行う（[AWS公式手順](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-fund-wallet.html)）。
+**Because this project uses the Stripe (Privy) connector, there is no hosted
+"just open it" `redirectUrl` like Coinbase's** (`create-instrument` prints
+`(redirectUrl was not returned…)` — that is expected). Funding and signing
+delegation are done by running the Privy reference frontend (Next.js) locally
+([AWS docs](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-fund-wallet.html)).
 
 ```bash
 git clone https://github.com/privy-io/aws-agentcore-sdk.git
 cd aws-agentcore-sdk
 ```
 
-`.env.local` を作成する（値は手順3で `setup-connector` に入力したものと同じ）:
+Create `.env.local` (same values you entered in step 3):
 
 ```bash
 NEXT_PUBLIC_PRIVY_APP_ID=<Privy App ID>
 PRIVY_APP_SECRET=<Privy App Secret>
-NEXT_PUBLIC_PRIVY_SIGNER_ID=<Privy Authorization ID（Key ID。公開識別子なのでクライアント露出可）>
+NEXT_PUBLIC_PRIVY_SIGNER_ID=<Privy Authorization ID (Key ID; a public identifier, safe client-side)>
 NEXT_PUBLIC_NETWORK_MODE=testnet
 ```
 
-1. Privy ダッシュボード **App Settings > Basics > Domains** に `http://localhost:3000` を許可（allowlist）
-2. `pnpm install && pnpm dev` → `http://localhost:3000` を開く
-3. **`create-instrument` で指定したウォレット連携用メールアドレスと同じもの**でログイン（ログイン時に Base / Solana の埋め込みウォレットが自動生成される）
-4. **入金**: 画面に表示されるウォレットアドレスを [Circle faucet](https://faucet.circle.com/) の **Base Sepolia** に貼り、testnet USDC を受け取る
-5. **署名権限の許可（delegation）**: ホーム画面の「Connect agent」→「Give access」。Authorization ID がウォレットの session signer として登録される
+1. In the Privy dashboard, allowlist `http://localhost:3000` under
+   **App Settings > Basics > Domains**.
+2. `pnpm install && pnpm dev`, then open `http://localhost:3000`.
+3. Log in with **the same wallet-linking email you passed to `create-instrument`**
+   (embedded Base / Solana wallets are created automatically on login).
+4. **Fund:** paste the wallet address shown in the UI into the
+   [Circle faucet](https://faucet.circle.com/), select **Base Sepolia**, receive
+   testnet USDC.
+5. **Grant signing (delegation):** on the home screen, "Connect agent" →
+   "Give access". The Authorization ID is registered as a session signer on the
+   wallet.
 
-入金と署名権限の付与の両方が完了するまで `PAYMENT_INSTRUMENT_ID` の残高は0のまま（`ProcessPayment` も失敗する）。完了後、`pnpm payments:admin status` で残高を確認できる。
+Until both funding and delegation are done, `PAYMENT_INSTRUMENT_ID` shows a zero
+balance and `ProcessPayment` fails. After that, `pnpm payments:admin status`
+shows the balance.
 
-### 5. Payment Session（予算・有効期限）の作成
+### 5. Create a Payment Session (budget + expiry)
 
 ```bash
-PAYMENT_MANAGER_ARN=<手順3のARN> PAYMENT_USER_ID=<手順4で使ったユーザーID> pnpm payments:admin new-session
+PAYMENT_MANAGER_ARN=<step 3 ARN> PAYMENT_USER_ID=<user ID from step 4> pnpm payments:admin new-session
 ```
 
-上限予算・有効期限（15〜480分、AWSの制約）を入力し、最後に `approve` とタイプして承認する（非対話実行からは承認できない設計）。完了すると `PAYMENT_SESSION_ID` が表示される。
+Enter a max budget and an expiry (15–480 minutes, an AWS constraint), then type
+`approve` to confirm (non-interactive callers cannot approve). It prints
+`PAYMENT_SESSION_ID`.
 
-> セッションは有効期限が切れると失効するため、検証を再開するたびに `new-session` を再実行して新しい `PAYMENT_SESSION_ID` を発行する。
+> Sessions expire. Re-run `new-session` for a fresh `PAYMENT_SESSION_ID` whenever
+> you resume testing.
 
-## ゴール①: x402クライアント単体での決済確認
+## Goal 1: verify payment with the x402 client alone
 
 ```bash
 cp apps/x402/client/.env.example apps/x402/client/.env
 ```
 
-`.env` に以下を設定する（AWS認証情報はローカルの `aws configure` プロファイルを使うため`.env`には含めない）:
+Set the following in `.env` (AWS credentials come from your local `aws configure`
+profile, so they are **not** in `.env`):
 
 ```bash
 AWS_REGION=us-west-2
-PAYMENT_MANAGER_ARN=<上記手順3>
-PAYMENT_INSTRUMENT_ID=<上記手順4>
-PAYMENT_SESSION_ID=<上記手順5>
-PAYMENT_USER_ID=<上記手順4/5と同じユーザーID>
+PAYMENT_MANAGER_ARN=<step 3>
+PAYMENT_INSTRUMENT_ID=<step 4>
+PAYMENT_SESSION_ID=<step 5>
+PAYMENT_USER_ID=<same user ID as steps 4/5>
 PAYWALL_API_BASE_URL=http://localhost:4021
 PAYWALL_PATH=/weather
 ```
@@ -150,64 +212,74 @@ PAYWALL_PATH=/weather
 pnpm x402client dev
 ```
 
-`AgentCore Payments経由で決済しました（processPaymentId: ...）` と表示されれば成功。
+On success the script prints a line reporting the payment settled together with
+its `processPaymentId`.
 
-## ゴール②: Claude CodeからMCP経由での決済確認
+## Goal 2: verify payment from Claude Code over MCP
 
-### 2-1. `apps/mcp/.env` を用意する
+### 2-1. Prepare `apps/mcp/.env`
 
-ゴール①で動いた `apps/x402/client/.env` をそのまま流用できる（`PAYWALL_PATH` は余分だが無視される。`PORT` 省略時は 4024）:
+You can reuse the working `apps/x402/client/.env` (`PAYWALL_PATH` is extra but
+ignored; `PORT` defaults to 4024):
 
 ```bash
 cp apps/x402/client/.env apps/mcp/.env
 ```
 
-または手動で（`apps/mcp/.env.example` 参照）:
+Or set it manually (see `apps/mcp/.env.example`):
 
 ```bash
 AWS_REGION=us-west-2
-PAYMENT_MANAGER_ARN=<ゴール①と同じ>
-PAYMENT_INSTRUMENT_ID=<ゴール①と同じ>
-PAYMENT_SESSION_ID=<ゴール①と同じ（失効していたら new-session で再発行）>
-PAYMENT_USER_ID=<ゴール①と同じ>
+PAYMENT_MANAGER_ARN=<same as Goal 1>
+PAYMENT_INSTRUMENT_ID=<same as Goal 1>
+PAYMENT_SESSION_ID=<same as Goal 1 (re-issue with new-session if expired)>
+PAYMENT_USER_ID=<same as Goal 1>
 PAYWALL_API_BASE_URL=http://localhost:4021
 PORT=4024
 ```
 
-### 2-2. 3サービスを起動する（別ターミナル各1つ）
+### 2-2. Start the three services (one terminal each)
 
 ```bash
-pnpm x402server dev     # :4021 リソースサーバー
-pnpm facilitator dev    # :4022 決済の検証・オンチェーン実行
-pnpm mcp dev            # :4024 MCPサーバー（get_weather ツール）
+pnpm x402server dev     # :4021 resource server
+pnpm facilitator dev    # :4022 verify + on-chain settle
+pnpm mcp dev            # :4024 MCP server (get_weather tool)
 ```
 
-### 2-3. Claude Code を使わず疎通確認だけしたい場合
+### 2-3. Smoke test without Claude Code
 
 ```bash
-pnpm --filter mcp call            # get_weather を1回呼ぶ（WEATHER_CITY で都市指定可）
+pnpm --filter mcp call            # calls get_weather once (WEATHER_CITY sets the city)
 ```
 
-`{"city":"Tokyo","weather":"sunny","temperature":70,"payment":{"settled":true,"processPaymentId":"..."}}` が返れば、
-MCP → x402（402）→ AgentCore Payments（ProcessPayment）→ facilitator によるオンチェーン決済（Base Sepolia の USDC $0.01）→ 天気データ返却、まで一気通貫で動いている。
+If it returns
+`{"city":"Tokyo","weather":"sunny","temperature":70,"payment":{"settled":true,"processPaymentId":"..."}}`,
+the full path works: MCP → x402 (402) → AgentCore Payments (`ProcessPayment`) →
+facilitator on-chain settlement (USDC $0.01 on Base Sepolia) → weather returned.
 
-### 2-4. Claude Code に接続する
+### 2-4. Connect Claude Code
 
-`apps/mcp/.mcp.example.json` にこの MCP サーバーの定義（`x402-weather` → `http://localhost:4024/mcp`）がある。いずれかの方法で登録する:
+`apps/mcp/.mcp.example.json` defines this MCP server
+(`x402-weather` → `http://localhost:4024/mcp`). Register it either way:
 
 ```bash
-# 方法A: リポジトリ直下の .mcp.json として使う（Claude Code が自動検出。要承認）
+# A: use it as a repo-root .mcp.json (Claude Code auto-detects it; needs approval)
 cp apps/mcp/.mcp.example.json .mcp.json
 
-# 方法B: CLI で追加する
+# B: add it via the CLI
 claude mcp add --transport http x402-weather http://localhost:4024/mcp
 ```
 
-`claude mcp list` で `x402-weather` を確認する（`⏸ Pending approval` の場合は Claude Code 上で承認 → health check が通る）。
+Check `claude mcp list` for `x402-weather` (if it shows `⏸ Pending approval`,
+approve it in Claude Code and the health check will pass).
 
-承認後、Claude Code から `get_weather`（`mcp__x402-weather__get_weather`）を呼び出すと、内部で AgentCore Payments 経由の決済が行われ、天気データと決済メタ情報（`processPaymentId`）が返る。署名済みプルーフや `PAYMENT-SIGNATURE` ヘッダーの生データはモデルには渡らない。
+Once approved, calling `get_weather` (`mcp__x402-weather__get_weather`) from
+Claude Code runs the AgentCore Payments flow internally and returns the weather
+plus payment metadata (`processPaymentId`). The signed proof and the raw
+`PAYMENT-SIGNATURE` header are never exposed to the model.
 
-> スタンドアロンの **Claude Desktop アプリ**（Claude Code ではない方）から使う場合は、`claude_desktop_config.json` にローカル HTTP を橋渡しする `mcp-remote` を設定する:
+> To use it from the standalone **Claude Desktop app** (not Claude Code),
+> configure the `mcp-remote` bridge in `claude_desktop_config.json`:
 > ```json
 > { "mcpServers": { "x402-weather": {
 >   "command": "npx",
@@ -215,54 +287,60 @@ claude mcp add --transport http x402-weather http://localhost:4024/mcp
 > } } }
 > ```
 
-## AWSへのデプロイ（本番相当のホスティング）
+## Deploy to AWS (production-like hosting)
 
 ```bash
-# 1. Seller側（resource server + facilitator）
+# 1. Seller side (resource server + facilitator)
 pnpm cdk deploy FoundationStack X402WeatherStack
 
-# 2. facilitatorのガス代支払い用秘密鍵をSecrets Managerに投入（値はコンソール/CLIから、Gitには含めない）
+# 2. Put the facilitator's gas-paying key into Secrets Manager
+#    (value via console/CLI only; never in git)
 aws secretsmanager put-secret-value \
   --secret-id agentcore-payments-sample/dev/facilitator-evm-private-key \
   --secret-string '{"EVM_PRIVATE_KEY":"0x..."}'
 
-# 3. 上記「Amazon Bedrock AgentCore Payments のセットアップ」を実施
+# 3. Run the "Amazon Bedrock AgentCore Payments setup" above
 
-# 4. Payer側（MCPサーバー）。PAYMENT_MANAGER_ARN等は手順3で取得した値
-SELLER_PAYTO_ADDRESS=<受取ウォレット> \
+# 4. Payer side (MCP server). PAYMENT_MANAGER_ARN etc. come from step 3
+SELLER_PAYTO_ADDRESS=<payTo wallet> \
 PAYMENT_MANAGER_ARN=<...> PAYMENT_INSTRUMENT_ID=<...> \
 PAYMENT_SESSION_ID=<...> PAYMENT_USER_ID=<...> \
 pnpm cdk deploy McpStack
 ```
 
-デプロイ後、`McpStack` の出力 `McpServerUrl` を `claude mcp add --transport http weather-x402 <URL>` に渡せば、AWS上のMCPサーバーに接続できる。**ALBはデフォルトDNS名（カスタムドメインなし）のためHTTP接続になる点に注意**（design.md 7.6節）。
+After deploy, pass the `McpStack` output `McpServerUrl` to
+`claude mcp add --transport http x402-weather <URL>` to connect to the MCP server
+on AWS. **Note the ALB uses its default DNS name (no custom domain), so the
+connection is plain HTTP** (design.md §7.6).
 
-詳細（スタック構成・IAM設計・destroy手順）は [`apps/cdk/README.md`](apps/cdk/README.md) を参照。
+For details (stack layout, IAM design, destroy steps) see
+[`apps/cdk/README.md`](apps/cdk/README.md).
 
-## トラブルシューティング
+## Troubleshooting
 
-| 症状 | 原因・対処 |
+| Symptom | Cause / fix |
 |---|---|
-| resource server起動直後の最初のリクエストが500になる | facilitatorの起動と競合するタイムング問題。facilitator起動後にもう一度リクエストすれば解消する |
-| `ProcessPayment`が`ValidationException`を返す | Payment Sessionが失効／予算超過。`pnpm payments:admin new-session`で再発行する |
-| `ProcessPayment`が認証エラーを返す | 実行環境のAWS認証情報にProcessPaymentRole相当の権限があるか確認する（ローカルなら`aws sts get-caller-identity`で現在のIDを確認） |
-| ウォレット残高が0のまま | Payment Instrument作成時の`redirectUrl`で入金・許可操作が完了していない |
-| `cdk deploy`がDockerエラーで失敗する | Dockerが起動しているか確認する（`docker info`） |
+| The first request right after starting the resource server returns 500 | Race with facilitator startup. Retry once the facilitator is up. |
+| `CreatePaymentManager` fails with `Role validation failed` | FoundationStack region and the admin script region differ. Put both on `us-west-2`. |
+| `CreatePaymentManager` fails with `missing the required permission: bedrock-agentcore:CreateWorkloadIdentity` | The BYO role has no base permissions. Redeploy the latest `FoundationStack` (they are attached to `ResourceRetrievalRole`). |
+| `ProcessPayment` / payment returns `Your session has expired` | Payment Session expired. Re-run `pnpm payments:admin new-session` and update `PAYMENT_SESSION_ID` in `.env`. |
+| The post-payment request returns an empty `402 {}` | x402 v2 reads the `PAYMENT-SIGNATURE` header. Use the latest `packages/shared`. |
+| Wallet balance stays at 0 | Funding / delegation not completed in the Privy frontend (step 4). |
+| `cdk deploy` fails with a Docker error | Check Docker is running (`docker info`). |
 
-## 開発コマンド
+## Dev commands
 
 ```bash
 pnpm format   # biome format --write .
-pnpm check    # biome check --write .（フォーマット+lint）
-pnpm knip     # 未使用ファイル・export・依存関係の検出
-pnpm jscpd    # コピペ検出
+pnpm check    # biome check --write . (format + lint)
+pnpm knip     # find unused files / exports / deps
+pnpm jscpd    # copy-paste detection
 ```
 
-## ライセンス
+## License
 
 [MIT](./LICENSE)
 
-
-## x402によるステーブルコイン決済の記録
+## On-chain record of an x402 stablecoin payment
 
 [BaseScan - 0x64d08bb4071635890366ade57daba52c75a9a6fe3e5202a87b706df42edb78e0](https://sepolia.basescan.org/tx/0x64d08bb4071635890366ade57daba52c75a9a6fe3e5202a87b706df42edb78e0)

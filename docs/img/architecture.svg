@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1220.2825000000003 395" width="1220.2825000000003" height="395" style="--bg:#0d1117;--fg:#e6edf3;--line:#3d444d;--accent:#4493f8;--muted:#9198a1;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 30%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="4.8" refX="8" refY="2.4" orient="auto">
+    <polygon points="0 0, 8 2.4, 0 4.8" fill="var(--_arrow)" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="4.8" refX="0" refY="2.4" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.4, 8 4.8" fill="var(--_arrow)" />
+  </marker>
+</defs>
+<polyline points="190.99,133 190.99,104.5 95.48000000000002,104.5 95.48000000000002,58 484.1000000000002,58" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="557.3000000000002,76 557.3000000000002,104.5 967.8325000000002,104.5 967.8325000000002,151 988.4325000000001,151" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="879.4825000000001,133 879.4825000000001,104.5 750.8800000000001,104.5 750.8800000000001,58 630.5000000000002,58" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="557.3000000000002,76 557.3000000000002,104.5 625.6400000000001,104.5 625.6400000000001,151 676.9750000000001,151" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="557.3000000000002,133 557.3000000000002,104.5 488.9600000000001,104.5 488.9600000000001,58 484.1000000000002,58" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="557.3000000000002,169 557.3000000000002,226" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline points="879.4825000000001,169 879.4825000000001,226" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="879.4825000000001,262 879.4825000000001,319" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="557.3000000000002,76 557.3000000000002,104.5 286.50000000000006,104.5 286.50000000000006,151 278.49,151" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="557.3000000000002,169 557.3000000000002,197.5 1089.2075000000002,197.5 1089.2075000000002,226" fill="none" stroke="var(--_line)" stroke-width="0.75" />
+<polyline points="954.9625000000001,76 954.9625000000001,104.5 866.6125000000002,104.5 866.6125000000002,151 770.5325,151" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<rect x="36.000000000000014" y="91" width="118.96000000000001" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="95.48000000000002" y="104.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">1 get_weather city</text>
+<rect x="882.6125000000002" y="91" width="170.44" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="967.8325000000002" y="104.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">6 retry + PAYMENT-SIGNATURE</text>
+<rect x="691.4000000000001" y="91" width="118.96000000000001" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="750.8800000000001" y="104.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">9 200 OK + weather</text>
+<rect x="571.8800000000001" y="91" width="107.52000000000001" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="625.6400000000001" y="104.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">4 ProcessPayment</text>
+<rect x="418.0400000000001" y="91" width="141.84" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="488.9600000000001" y="104.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">5 signed x402 v2 proof</text>
+<rect x="500.6800000000002" y="184" width="113.24000000000001" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="557.3000000000002" y="197.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">delegated signing</text>
+<rect x="822.8625000000001" y="184" width="113.24000000000001" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="879.4825000000001" y="197.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">7 verify / settle</text>
+<rect x="828.5825000000001" y="277" width="101.8" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="879.4825000000001" y="290.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">8 USDC transfer</text>
+<rect x="166.96000000000004" y="91" width="239.08" height="27" rx="4" ry="4" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="286.50000000000006" y="104.5" text-anchor="middle" dy="0.35em" font-size="11" font-weight="400" fill="var(--_text-muted)">10 weather + settled + processPaymentId</text>
+<rect x="103.49000000000001" y="133" width="175" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="484.1000000000002" y="40" width="146.4" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="770.5325" y="133" width="217.9" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="437.62500000000017" y="133" width="239.35000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="466.2250000000002" y="226" width="182.15" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="784.8325000000001" y="226" width="189.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="820.5825000000001" y="319" width="117.80000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="998.1325000000002" y="226" width="182.15" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="770.9375000000001" y="40" width="368.05" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="190.99" y="151" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">Claude / Claude Code</text>
+<text x="557.3000000000002" y="58" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">MCP server :4024</text>
+<text x="879.4825000000001" y="151" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">x402 resource server :4021</text>
+<text x="557.3000000000002" y="151" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">AgentCore Payments  us-west-2</text>
+<text x="557.3000000000002" y="244" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">Privy embedded wallet</text>
+<text x="879.4825000000001" y="244" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">x402 facilitator :4022</text>
+<text x="879.4825000000001" y="337" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">Base Sepolia</text>
+<text x="1089.2075000000002" y="244" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">IAM 4-role separation</text>
+<text x="954.9625000000001" y="58" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">CloudFormation / CDK: VPC, ECS, Secrets Manager</text>
+</svg>
