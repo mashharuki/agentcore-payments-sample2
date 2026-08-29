@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   BedrockAgentCoreClient,
   ProcessPaymentCommand,
@@ -8,7 +9,6 @@ import type {
   PaymentRequired,
   PaymentRequirements,
 } from "@x402/core/types";
-import { randomUUID } from "node:crypto";
 
 /**
  * Amazon Bedrock AgentCore Payments に接続するための設定。
@@ -25,7 +25,7 @@ export type AgentCorePaymentConfig = {
 };
 
 export type X402PaymentResult = {
-  /** x402の再送リクエストに付与する X-PAYMENT ヘッダーの値 */
+  /** x402の再送リクエストに付与する PAYMENT-SIGNATURE ヘッダーの値（x402 v2） */
   header: string;
   /** AgentCore Payments側の決済処理ID（ログ・トラブルシュート用） */
   processPaymentId: string;

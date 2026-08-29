@@ -14,7 +14,8 @@ import * as readline from "node:readline/promises";
  *
  * サブコマンド:
  *   setup-connector     PaymentCredentialProvider(StripePrivy) → PaymentManager → PaymentConnector を作成
- *   create-instrument   Payment Instrument（組み込みウォレット）を作成し、入金用URLを表示
+ *   create-instrument   Payment Instrument（組み込みウォレット）を作成し、入金・delegation手順を表示
+ *                       （Coinbaseは redirectUrl、StripePrivyはPrivyフロントエンド起動手順）
  *   new-session         予算・有効期限付きの Payment Session を作成（TTYでの承認必須）
  *   status              Session残予算 / Instrument残高を確認（読み取り専用）
  */
@@ -301,14 +302,55 @@ const cmdCreateInstrument = async (): Promise<void> => {
     `  PAYMENT_INSTRUMENT_ID=${instrument.paymentInstrument?.paymentInstrumentId}`,
   );
   console.log(`  PAYMENT_USER_ID=${userId}`);
+  if (details?.walletAddress) {
+    console.log(`  WALLET_ADDRESS=${details.walletAddress}`);
+  }
+
   console.log(
-    "\n次のURLをブラウザで開き、テストネットUSDCの入金と、このプロジェクトへの署名権限の許可を行ってください:",
+    "\n入金と署名権限の許可（delegation）が済むまで、status コマンドの残高は0のまま / ProcessPayment は失敗します。",
   );
+
+  if (details?.redirectUrl) {
+    // Coinbase CDP はホスト済みの WalletHub URL を返す。
+    console.log(
+      "\n次のURLをブラウザで開き、テストネットUSDCの入金とエージェントへの署名権限の許可を行ってください:",
+    );
+    console.log(`  ${details.redirectUrl}`);
+  } else {
+    // StripePrivy はホスト済みURLを返さない。Privy のリファレンスフロントエンドを自前で起動する。
+    // https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-fund-wallet.html
+    console.log(
+      "\nStripePrivy はホスト済みURLを返しません。Privy のリファレンスフロントエンドをローカル起動して操作します:",
+    );
+    console.log(
+      "  1. git clone https://github.com/privy-io/aws-agentcore-sdk.git && cd aws-agentcore-sdk",
+    );
+    console.log(
+      "  2. .env.local を作成:\n" +
+        "       NEXT_PUBLIC_PRIVY_APP_ID=<setup-connector で入力した App ID>\n" +
+        "       PRIVY_APP_SECRET=<App Secret>\n" +
+        "       NEXT_PUBLIC_PRIVY_SIGNER_ID=<Authorization ID / Key ID（公開可）>\n" +
+        "       NEXT_PUBLIC_NETWORK_MODE=testnet",
+    );
+    console.log(
+      "  3. Privy ダッシュボード App Settings > Basics > Domains に http://localhost:3000 を許可",
+    );
+    console.log(
+      "  4. pnpm install && pnpm dev で http://localhost:3000 を開く",
+    );
+    console.log(
+      `  5. このインストゥルメントに紐付けたメールアドレス（${email || userId}）でログイン`,
+    );
+    console.log(
+      "  6. 表示されたウォレットアドレスを Circle faucet（https://faucet.circle.com/ ・Base Sepolia）で入金",
+    );
+    console.log(
+      '  7. ホーム画面の "Connect agent" → "Give access" で署名権限を付与',
+    );
+  }
+
   console.log(
-    `  ${details?.redirectUrl ?? "(redirectUrlが返されませんでした。AWSコンソールを確認してください)"}`,
-  );
-  console.log(
-    "\n入金・許可が完了するまで status コマンドで残高が0のままになります。完了後に new-session を実行してください。",
+    "\n両方が完了したら status で残高を確認し、次に new-session を実行してください。",
   );
 };
 

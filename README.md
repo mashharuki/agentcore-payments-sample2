@@ -86,13 +86,37 @@ RESOURCE_RETRIEVAL_ROLE_ARN=<手順2で控えたARN> pnpm payments:admin setup-c
 
 Privyの資格情報（App ID / App Secret / Authorization ID / Authorization Private Key）の入力を求められる。入力はターミナルにエコーされず、このプロセスの外には保存されない。完了すると `PAYMENT_MANAGER_ARN` と `PAYMENT_CONNECTOR_ID` が表示されるので控える。
 
-### 4. Payment Instrument（ウォレット）の作成・入金
+### 4. Payment Instrument（ウォレット）の作成・入金・署名権限の付与
 
 ```bash
 PAYMENT_MANAGER_ARN=<手順3のARN> PAYMENT_CONNECTOR_ID=<手順3のID> pnpm payments:admin create-instrument
 ```
 
-表示された `redirectUrl` をブラウザで開き、**テストネットUSDCの入金** と **このプロジェクトへの署名権限の許可** を行う。完了するまで `PAYMENT_INSTRUMENT_ID` の残高は0のまま。
+利用者ID（自分のメールアドレス等）とウォレット連携用メールアドレスを入力すると `PAYMENT_INSTRUMENT_ID` が表示される。
+
+**このプロジェクトは Stripe (Privy) コネクタを使うため、Coinbase のような「開くだけ」のホスト済み `redirectUrl` は返ってこない**（`create-instrument` は `(redirectUrlが返されませんでした…)` と表示する。これは仕様）。入金と署名権限の付与は、Privy のリファレンスフロントエンド（Next.js）をローカル起動して行う（[AWS公式手順](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-fund-wallet.html)）。
+
+```bash
+git clone https://github.com/privy-io/aws-agentcore-sdk.git
+cd aws-agentcore-sdk
+```
+
+`.env.local` を作成する（値は手順3で `setup-connector` に入力したものと同じ）:
+
+```bash
+NEXT_PUBLIC_PRIVY_APP_ID=<Privy App ID>
+PRIVY_APP_SECRET=<Privy App Secret>
+NEXT_PUBLIC_PRIVY_SIGNER_ID=<Privy Authorization ID（Key ID。公開識別子なのでクライアント露出可）>
+NEXT_PUBLIC_NETWORK_MODE=testnet
+```
+
+1. Privy ダッシュボード **App Settings > Basics > Domains** に `http://localhost:3000` を許可（allowlist）
+2. `pnpm install && pnpm dev` → `http://localhost:3000` を開く
+3. **`create-instrument` で指定したウォレット連携用メールアドレスと同じもの**でログイン（ログイン時に Base / Solana の埋め込みウォレットが自動生成される）
+4. **入金**: 画面に表示されるウォレットアドレスを [Circle faucet](https://faucet.circle.com/) の **Base Sepolia** に貼り、testnet USDC を受け取る
+5. **署名権限の許可（delegation）**: ホーム画面の「Connect agent」→「Give access」。Authorization ID がウォレットの session signer として登録される
+
+入金と署名権限の付与の両方が完了するまで `PAYMENT_INSTRUMENT_ID` の残高は0のまま（`ProcessPayment` も失敗する）。完了後、`pnpm payments:admin status` で残高を確認できる。
 
 ### 5. Payment Session（予算・有効期限）の作成
 
@@ -195,3 +219,7 @@ pnpm check    # biome check --write .（フォーマット+lint）
 pnpm knip     # 未使用ファイル・export・依存関係の検出
 pnpm jscpd    # コピペ検出
 ```
+
+## ライセンス
+
+[MIT](./LICENSE)

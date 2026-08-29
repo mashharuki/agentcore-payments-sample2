@@ -46,19 +46,35 @@ export const fetchWithAgentCorePayment = async <TData = unknown>(
     config,
   );
 
-  // 署名データ付きで再度アクセス
+  // 署名データ付きで再度アクセス。
+  // x402 v2 のサーバー（@x402/core v2）は PAYMENT-SIGNATURE ヘッダーのみを読む
+  // （extractPayment() は payment-signature 以外を見ない）。v1 の X-PAYMENT に入れても
+  // 「支払いなし」と見なされ、本文が空の402が返るだけなので注意。
   const paidResponse = await fetch(url, {
     ...init,
     headers: {
       ...(init?.headers as Record<string, string> | undefined),
-      "X-PAYMENT": header,
+      "PAYMENT-SIGNATURE": header,
     },
   });
 
   if (!paidResponse.ok) {
-    const body = await paidResponse.text();
+    // v2 の402は本文が空で、失敗理由（verifyの invalidReason 等）は
+    // payment-required ヘッダーの error フィールドに入っている。
+    let reason = (await paidResponse.text()) || "(空のレスポンス本文)";
+    const failureHeader = paidResponse.headers.get("payment-required");
+    if (failureHeader) {
+      try {
+        const decoded = decodePaymentRequiredHeader(failureHeader) as {
+          error?: string;
+        };
+        if (decoded.error) reason = decoded.error;
+      } catch {
+        // デコードできなければ本文テキストのまま
+      }
+    }
     throw new Error(
-      `決済後のリクエストが失敗しました: ${paidResponse.status} ${body}`,
+      `決済後のリクエストが失敗しました: ${paidResponse.status} ${reason}`,
     );
   }
 

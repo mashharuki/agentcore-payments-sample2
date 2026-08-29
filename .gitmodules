@@ -1,0 +1,3 @@
+[submodule "aws-agentcore-sdk"]
+	path = aws-agentcore-sdk
+	url = https://github.com/privy-io/aws-agentcore-sdk.git
